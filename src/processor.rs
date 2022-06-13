@@ -467,7 +467,7 @@ impl Processor {
                 holder_zion_token_account.key,
                 &pda,
                 &[&pda],
-                auction_order_struct.bid * 95 / 100,
+                auction_order_struct.bid * 97 / 100,
                 9,
             )?,
             &[
@@ -488,7 +488,7 @@ impl Processor {
                 client_zion_token_account_info.key,
                 &pda,
                 &[&pda],
-                auction_order_struct.bid * 5 / 100,
+                auction_order_struct.bid * 3 / 100,
                 9,
             )?,
             &[
@@ -602,7 +602,7 @@ impl Processor {
                     holder_zion_token_account.key,
                     &pda,
                     &[&pda],
-                    auction_order_struct.bid * 95 / 100,
+                    auction_order_struct.bid * 97 / 100,
                     9,
                 )?,
                 &[
@@ -623,7 +623,7 @@ impl Processor {
                     client_zion_token_account_info.key,
                     &pda,
                     &[&pda],
-                    auction_order_struct.bid * 5 / 100,
+                    auction_order_struct.bid * 3 / 100,
                     9,
                 )?,
                 &[
@@ -1070,7 +1070,7 @@ impl Processor {
             return Err(MarketError::InvalidInstruction.into());
         }
         if let Err(error) = invoke_signed(
-            &transfer(&pda, holder_info.key, (auction_order_struct.bid * 95) / 100),
+            &transfer(&pda, holder_info.key, (auction_order_struct.bid * 97) / 100),
             &[
                 sys_program_info.clone(),
                 pda_account_info.clone(),
@@ -1081,7 +1081,7 @@ impl Processor {
             return Err(error);
         }
         if let Err(error) = invoke_signed(
-            &transfer(&pda, cat_king.key, (auction_order_struct.bid * 5) / 100),
+            &transfer(&pda, cat_king.key, (auction_order_struct.bid * 3) / 100),
             &[
                 sys_program_info.clone(),
                 pda_account_info.clone(),
@@ -1183,7 +1183,7 @@ impl Processor {
             && auction_order_struct.bid != 0
         {
             if let Err(error) = invoke_signed(
-                &transfer(&pda, holder_info.key, (auction_order_struct.bid * 95) / 100),
+                &transfer(&pda, holder_info.key, (auction_order_struct.bid * 97) / 100),
                 &[
                     sys_program_info.clone(),
                     pda_account_info.clone(),
@@ -1194,7 +1194,7 @@ impl Processor {
                 return Err(error);
             }
             if let Err(error) = invoke_signed(
-                &transfer(&pda, cat_king.key, (auction_order_struct.bid * 5) / 100),
+                &transfer(&pda, cat_king.key, (auction_order_struct.bid * 3) / 100),
                 &[
                     sys_program_info.clone(),
                     pda_account_info.clone(),
@@ -1467,7 +1467,7 @@ impl Processor {
         let _token_program = next_account_info(accounts)?;
         let raffle_struct: RaffleOrder =
             try_from_slice_unchecked(&mut raffle_order_account_info.data.borrow())?;
-            
+
         let mut exist = false;
         for i in 0..raffle_struct.raffle_entry_record.len() {
             if *raffler_info.key == raffle_struct.raffle_entry_record[i].raffler_address {
@@ -1641,7 +1641,7 @@ impl Processor {
                 return Err(MarketError::WrongOwner.into());
             }
             if let Err(error) = invoke(
-                &transfer(&raffler_info.key, rafflee_info.key, amount * 95 / 100),
+                &transfer(&raffler_info.key, rafflee_info.key, amount * 97 / 100),
                 &[
                     sys_program_info.clone(),
                     raffler_info.clone(),
@@ -1655,7 +1655,7 @@ impl Processor {
                 &transfer(
                     &raffler_info.key,
                     cat_king_wallet_account_info.key,
-                    amount * 5 / 100,
+                    amount * 3 / 100,
                 ),
                 &[
                     sys_program_info.clone(),
@@ -1724,7 +1724,7 @@ impl Processor {
                     client_zion_token_account_info.key,
                     raffler_info.key,
                     &[raffler_info.key],
-                    amount * 95 / 100,
+                    amount * 97 / 100,
                     9,
                 )?,
                 &[
@@ -1744,7 +1744,7 @@ impl Processor {
                     cat_king_zion_token_account.key,
                     raffler_info.key,
                     &[raffler_info.key],
-                    amount * 5 / 100,
+                    amount * 3 / 100,
                     9,
                 )?,
                 &[
