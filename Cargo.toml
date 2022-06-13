@@ -1,0 +1,16 @@
+[package]
+name = "marketplace"
+version = "0.1.0"
+edition = "2018"
+license = "WTFPL"
+publish = false
+
+[dependencies]
+solana-program = "=1.9.9"
+borsh = "0.9.1"
+spl-token = { version="3.2", features = [ "no-entrypoint" ] }
+mpl-token-metadata = {version='1.2.5', features = [ "no-entrypoint"]}
+thiserror = "1.0.24"
+
+[lib]
+crate-type = ["cdylib", "lib"]
