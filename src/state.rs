@@ -44,5 +44,6 @@ pub struct RaffleOrder{
     pub token_account: Pubkey,
     pub price:u64,
     pub token_type: Pubkey,
+    pub ticket_supply:u64,
     pub raffle_entry_record:Vec<RaffleCounter>
 }

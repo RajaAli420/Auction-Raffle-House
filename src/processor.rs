@@ -46,9 +46,11 @@ impl Processor {
                 Self::complete_auction_order_any_time(program_id, account_info)
             }
             MarketplaceInstruction::CanceAuction => Self::cancel_auction(program_id, account_info),
-            MarketplaceInstruction::RaffleStart { time, price } => {
-                Self::raffle_start(program_id, account_info, time, price)
-            }
+            MarketplaceInstruction::RaffleStart {
+                time,
+                price,
+                total_ticket,
+            } => Self::raffle_start(program_id, account_info, time, price, total_ticket),
             MarketplaceInstruction::EndRaffle => Self::end_raffle(program_id, account_info),
             MarketplaceInstruction::MakeRaffleEntry { amount, quantity } => {
                 Self::make_raffle_entry(account_info, amount, quantity)
@@ -206,15 +208,13 @@ impl Processor {
             && auction_order_struct.time > Clock::get()?.unix_timestamp as u64
         {
             if let Err(error) = invoke(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     biddder_zion_token_account_info.key,
-                    zion_mint_account_info.key,
                     pda_zion_token_account_info.key,
                     bidder_account_info.key,
                     &[bidder_account_info.key],
                     bid,
-                    9,
                 )?,
                 &[
                     biddder_zion_token_account_info.clone(),
@@ -235,15 +235,13 @@ impl Processor {
         {
             //setting new bid
             if let Err(error) = invoke(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     biddder_zion_token_account_info.key,
-                    zion_mint_account_info.key,
                     pda_zion_token_account_info.key,
                     bidder_account_info.key,
                     &[bidder_account_info.key],
                     bid,
-                    9,
                 )?,
                 &[
                     biddder_zion_token_account_info.clone(),
@@ -265,15 +263,13 @@ impl Processor {
             }
             //refunding previous bidder
             if let Err(error) = invoke_signed(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     pda_zion_token_account_info.key,
-                    zion_mint_account_info.key,
                     previous_bidder_zion_token_account_info.key,
                     &pda,
                     &[&pda],
                     auction_order_struct.bid,
-                    9,
                 )?,
                 &[
                     pda_zion_token_account_info.clone(),
@@ -340,15 +336,14 @@ impl Processor {
         //transferring ZIon to cat king
         if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time {
             if let Err(error) = invoke_signed(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     pda_zion_token_account_info.key,
-                    zion_mint_account_info.key,
+                    
                     cat_king_zion_token_account.key,
                     &pda,
                     &[&pda],
                     auction_order_struct.bid,
-                    9,
                 )?,
                 &[
                     pda_zion_token_account_info.clone(),
@@ -460,15 +455,14 @@ impl Processor {
             return Err(MarketError::InvalidInstruction.into());
         }
         if let Err(error) = invoke_signed(
-            &SPLIX::transfer_checked(
+            &SPLIX::transfer(
                 token_program.key,
                 pda_zion_token_account_info.key,
-                zion_mint_account_info.key,
+                
                 holder_zion_token_account.key,
                 &pda,
                 &[&pda],
-                auction_order_struct.bid * 97 / 100,
-                9,
+                (auction_order_struct.bid as f64 * 97.5 / 100.00) as u64,
             )?,
             &[
                 pda_zion_token_account_info.clone(),
@@ -481,15 +475,14 @@ impl Processor {
             return Err(error);
         }
         if let Err(error) = invoke_signed(
-            &SPLIX::transfer_checked(
+            &SPLIX::transfer(
                 token_program.key,
                 pda_zion_token_account_info.key,
-                zion_mint_account_info.key,
+                
                 client_zion_token_account_info.key,
                 &pda,
                 &[&pda],
-                auction_order_struct.bid * 3 / 100,
-                9,
+                (auction_order_struct.bid as f64 * 2.5 / 100.00) as u64,
             )?,
             &[
                 pda_zion_token_account_info.clone(),
@@ -595,15 +588,14 @@ impl Processor {
         //transferring ZIon to cat king
         if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time {
             if let Err(error) = invoke_signed(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     pda_zion_token_account_info.key,
-                    zion_mint_account_info.key,
+                    
                     holder_zion_token_account.key,
                     &pda,
                     &[&pda],
-                    auction_order_struct.bid * 97 / 100,
-                    9,
+                    (auction_order_struct.bid as f64 * 97.5 / 100.00) as u64,
                 )?,
                 &[
                     pda_zion_token_account_info.clone(),
@@ -616,15 +608,13 @@ impl Processor {
                 return Err(error);
             }
             if let Err(error) = invoke_signed(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     pda_zion_token_account_info.key,
-                    zion_mint_account_info.key,
                     client_zion_token_account_info.key,
                     &pda,
                     &[&pda],
-                    auction_order_struct.bid * 3 / 100,
-                    9,
+                    (auction_order_struct.bid as f64 * 2.5 / 100.00) as u64,
                 )?,
                 &[
                     pda_zion_token_account_info.clone(),
@@ -695,6 +685,9 @@ impl Processor {
         let token_program = next_account_info(accounts)?;
         let pda_account_info = next_account_info(accounts)?;
         let bidder_info = next_account_info(accounts)?;
+        let previous_bidder_zion_token_account_info = next_account_info(accounts)?;
+        let zion_mint_account_info = next_account_info(accounts)?;
+        let pda_zion_token_account_info = next_account_info(accounts)?;
         let auction_order_struct: AuctionOrder =
             BorshDeserialize::try_from_slice(&mut auction_order_account_info.data.borrow())?;
         if payer_info.is_signer != true
@@ -709,9 +702,7 @@ impl Processor {
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
         }
-        if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time
-            && auction_order_struct.bid == 0
-        {
+        if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time {
             if let Err(error) = invoke_signed(
                 &SPLIX::set_authority(
                     token_program.key,
@@ -730,29 +721,29 @@ impl Processor {
             ) {
                 return Err(error);
             }
-            // if auction_order_struct.bid != 0 {
-            //     if let Err(error) = invoke_signed(
-            //         &SPLIX::transfer_checked(
-            //             token_program.key,
-            //             pda_token_account_info.key,
-            //             zion_mint_account_info.key,
-            //             bidder_zion_token_account.key,
-            //             &pda,
-            //             &[&pda],
-            //             auction_order_struct.bid,
-            //             9,
-            //         )?,
-            //         &[
-            //             pda_token_account_info.clone(),
-            //             zion_mint_account_info.clone(),
-            //             bidder_zion_token_account.clone(),
-            //             pda_account_info.clone(),
-            //         ],
-            //         &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
-            //     ) {
-            //         return Err(error);
-            //     }
-            // }
+            if auction_order_struct.bid != 0 {
+                if let Err(error) = invoke_signed(
+                    &SPLIX::transfer(
+                        token_program.key,
+                        pda_zion_token_account_info.key,
+                        
+                        previous_bidder_zion_token_account_info.key,
+                        &pda,
+                        &[&pda],
+                        auction_order_struct.bid,
+      
+                    )?,
+                    &[
+                        pda_zion_token_account_info.clone(),
+                        zion_mint_account_info.clone(),
+                        previous_bidder_zion_token_account_info.clone(),
+                        pda_account_info.clone(),
+                    ],
+                    &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                ) {
+                    return Err(error);
+                }
+            }
             **payer_info.try_borrow_mut_lamports()? = payer_info
                 .lamports()
                 .checked_add(auction_order_account_info.lamports())
@@ -1070,7 +1061,11 @@ impl Processor {
             return Err(MarketError::InvalidInstruction.into());
         }
         if let Err(error) = invoke_signed(
-            &transfer(&pda, holder_info.key, (auction_order_struct.bid * 97) / 100),
+            &transfer(
+                &pda,
+                holder_info.key,
+                ((auction_order_struct.bid as f64 * 97.5) / 100.00) as u64,
+            ),
             &[
                 sys_program_info.clone(),
                 pda_account_info.clone(),
@@ -1081,7 +1076,11 @@ impl Processor {
             return Err(error);
         }
         if let Err(error) = invoke_signed(
-            &transfer(&pda, cat_king.key, (auction_order_struct.bid * 3) / 100),
+            &transfer(
+                &pda,
+                cat_king.key,
+                ((auction_order_struct.bid as f64 * 2.5) / 100.00) as u64,
+            ),
             &[
                 sys_program_info.clone(),
                 pda_account_info.clone(),
@@ -1116,13 +1115,13 @@ impl Processor {
             &SPLIX::close_account(
                 token_program.key,
                 sell_token_account_info.key,
-                cat_king.key,
+                holder_info.key,
                 &pda,
                 &[&pda],
             )?,
             &[
                 sell_token_account_info.clone(),
-                cat_king.clone(),
+                holder_info.clone(),
                 pda_account_info.clone(),
             ],
             &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
@@ -1183,7 +1182,11 @@ impl Processor {
             && auction_order_struct.bid != 0
         {
             if let Err(error) = invoke_signed(
-                &transfer(&pda, holder_info.key, (auction_order_struct.bid * 97) / 100),
+                &transfer(
+                    &pda,
+                    holder_info.key,
+                    ((auction_order_struct.bid as f64 * 97.5) / 100.00) as u64,
+                ),
                 &[
                     sys_program_info.clone(),
                     pda_account_info.clone(),
@@ -1194,7 +1197,11 @@ impl Processor {
                 return Err(error);
             }
             if let Err(error) = invoke_signed(
-                &transfer(&pda, cat_king.key, (auction_order_struct.bid * 3) / 100),
+                &transfer(
+                    &pda,
+                    cat_king.key,
+                    ((auction_order_struct.bid as f64 * 2.5) / 100.00) as u64,
+                ),
                 &[
                     sys_program_info.clone(),
                     pda_account_info.clone(),
@@ -1260,14 +1267,14 @@ impl Processor {
         let auction_order_account_info = next_account_info(accounts)?;
         let token_program = next_account_info(accounts)?;
         let pda_account_info = next_account_info(accounts)?;
-        // let sys_program_info = next_account_info(accounts)?;
-        let bidder_info = next_account_info(accounts)?;
+        let sys_program_info = next_account_info(accounts)?;
+        let previous_bidder = next_account_info(accounts)?;
 
         let auction_order_struct: AuctionOrderSol =
             BorshDeserialize::try_from_slice(&mut auction_order_account_info.data.borrow())?;
         if *payer_info.key != auction_order_struct.owner_wallet_address
             || *token_account_info.key != auction_order_struct.token_account
-            || *bidder_info.key != auction_order_struct.bidder_wallet_address
+            || *previous_bidder.key != auction_order_struct.bidder_wallet_address
             || payer_info.is_signer != true
         {
             return Err(ProgramError::IllegalOwner.into());
@@ -1279,9 +1286,7 @@ impl Processor {
             return Err(MarketError::PdaError.into());
         }
         // 16                            15
-        if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time
-            && auction_order_struct.bid == 0
-        {
+        if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time {
             if let Err(error) = invoke_signed(
                 &SPLIX::set_authority(
                     token_program.key,
@@ -1300,25 +1305,37 @@ impl Processor {
             ) {
                 return Err(error);
             }
-            // if auction_order_struct.bid != 0 {
-            //     if let Err(error) = invoke_signed(
-            //         &transfer(&pda, bidder_info.key, auction_order_struct.bid),
-            //         &[
-            //             pda_account_info.clone(),
-            //             bidder_info.clone(),
-            //             sys_program_info.clone(),
-            //         ],
-            //         &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
-            //     ) {
-            //         return Err(error);
-            //     }
-            // }
-            **payer_info.try_borrow_mut_lamports()? = payer_info
-                .lamports()
-                .checked_add(auction_order_account_info.lamports())
-                .ok_or(ProgramError::InsufficientFunds)?;
-            **auction_order_account_info.try_borrow_mut_lamports()? = 0;
-            *auction_order_account_info.try_borrow_mut_data()? = &mut [];
+            if auction_order_struct.bid != 0 {
+                //     if let Err(error) = invoke_signed(
+                //         &transfer(&pda, bidder_info.key, auction_order_struct.bid),
+                //         &[
+                //             pda_account_info.clone(),
+                //             bidder_info.clone(),
+                //             sys_program_info.clone(),
+                //         ],
+                //         &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                //     ) {
+                //         return Err(error);
+                //     }
+                // }
+                if let Err(error) = invoke_signed(
+                    &transfer(&pda, previous_bidder.key, auction_order_struct.bid),
+                    &[
+                        pda_account_info.clone(),
+                        previous_bidder.clone(),
+                        sys_program_info.clone(),
+                    ],
+                    &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                ) {
+                    return Err(error);
+                }
+                **payer_info.try_borrow_mut_lamports()? = payer_info
+                    .lamports()
+                    .checked_add(auction_order_account_info.lamports())
+                    .ok_or(ProgramError::InsufficientFunds)?;
+                **auction_order_account_info.try_borrow_mut_lamports()? = 0;
+                *auction_order_account_info.try_borrow_mut_data()? = &mut [];
+            }
         } else {
             return Err(MarketError::CannotCancel.into());
         }
@@ -1331,6 +1348,7 @@ impl Processor {
         account_info: &[AccountInfo],
         time: u64,
         price: u64,
+        total_ticket: u64,
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
         let holder_info = next_account_info(accounts)?;
@@ -1343,18 +1361,20 @@ impl Processor {
         if raffle_order_struct.is_initialized == true {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
-        raffle_order_struct.is_initialized = true;
-        raffle_order_struct.owner_wallet_address = *holder_info.key;
-        raffle_order_struct.token_account = *token_account_info.key;
-        raffle_order_struct.time = time;
-        raffle_order_struct.price = price;
-        raffle_order_struct.token_type = *token_type.key;
+
         if SPLS::Account::unpack_unchecked(&mut token_account_info.data.borrow())?.amount != 1 {
             return Err(ProgramError::InsufficientFunds);
         }
         if price == 0 || holder_info.is_signer != true {
             return Err(MarketError::MinPrice.into());
         }
+        raffle_order_struct.is_initialized = true;
+        raffle_order_struct.owner_wallet_address = *holder_info.key;
+        raffle_order_struct.token_account = *token_account_info.key;
+        raffle_order_struct.time = time;
+        raffle_order_struct.price = price;
+        raffle_order_struct.token_type = *token_type.key;
+        raffle_order_struct.ticket_supply = total_ticket;
         let (pda, _nonce) =
             Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
         if let Err(error) = invoke(
@@ -1385,11 +1405,16 @@ impl Processor {
             try_from_slice_unchecked(&mut raffle_order_account_info.data.borrow())?;
         let mut exist = false;
         if raffle_struct.raffle_entry_record.is_empty() == true {
-            raffle_struct.raffle_entry_record.push(RaffleCounter {
-                raffler_address: *raffler_info.key,
-                entry_counter: quantity as u32,
-            });
-            exist = true;
+            if quantity as u64 <= raffle_struct.ticket_supply {
+                
+                raffle_struct.raffle_entry_record.push(RaffleCounter {
+                    raffler_address: *raffler_info.key,
+                    entry_counter: quantity as u32,
+                });
+                exist = true;
+            } else {
+                return Err(MarketError::ValueMisMatch.into());
+            }
         } else {
             for i in 0..raffle_struct.raffle_entry_record.len() {
                 if *raffler_info.key == raffle_struct.raffle_entry_record[i].raffler_address {
@@ -1404,6 +1429,14 @@ impl Processor {
                 raffler_address: *raffler_info.key,
                 entry_counter: quantity as u32,
             });
+        }
+        let mut total = 0;
+        for i in 0..raffle_struct.raffle_entry_record.len() {
+            let temp = raffle_struct.raffle_entry_record[i].entry_counter;
+            total = total + temp;
+        }
+        if total as u64 > raffle_struct.ticket_supply {
+            return Err(MarketError::ValueMisMatch.into());
         }
         if amount != raffle_struct.price * quantity as u64 {
             return Err(MarketError::ValueMisMatch.into());
@@ -1641,7 +1674,11 @@ impl Processor {
                 return Err(MarketError::WrongOwner.into());
             }
             if let Err(error) = invoke(
-                &transfer(&raffler_info.key, rafflee_info.key, amount * 97 / 100),
+                &transfer(
+                    &raffler_info.key,
+                    rafflee_info.key,
+                    (amount as f64 * 97.5 / 100.00) as u64,
+                ),
                 &[
                     sys_program_info.clone(),
                     raffler_info.clone(),
@@ -1655,7 +1692,7 @@ impl Processor {
                 &transfer(
                     &raffler_info.key,
                     cat_king_wallet_account_info.key,
-                    amount * 3 / 100,
+                    (amount as f64 * 2.5 / 100.00) as u64,
                 ),
                 &[
                     sys_program_info.clone(),
@@ -1690,15 +1727,15 @@ impl Processor {
             == Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
         {
             if let Err(error) = invoke(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     raffler_zion_token_account_info.key,
-                    zion_mint_account_info.key,
+                    
                     cat_king_zion_token_account.key,
                     raffler_info.key,
                     &[raffler_info.key],
                     amount,
-                    9,
+                    
                 )?,
                 &[
                     raffler_zion_token_account_info.clone(),
@@ -1717,15 +1754,15 @@ impl Processor {
                 return Err(MarketError::WrongOwner.into());
             }
             if let Err(error) = invoke(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     raffler_zion_token_account_info.key,
-                    zion_mint_account_info.key,
+                    
                     client_zion_token_account_info.key,
                     raffler_info.key,
                     &[raffler_info.key],
-                    amount * 97 / 100,
-                    9,
+                    (amount as f64 * 97.5 / 100.00) as u64,
+                    
                 )?,
                 &[
                     raffler_zion_token_account_info.clone(),
@@ -1737,15 +1774,15 @@ impl Processor {
                 return Err(error);
             }
             if let Err(error) = invoke(
-                &SPLIX::transfer_checked(
+                &SPLIX::transfer(
                     token_program.key,
                     raffler_zion_token_account_info.key,
-                    zion_mint_account_info.key,
+                    
                     cat_king_zion_token_account.key,
                     raffler_info.key,
                     &[raffler_info.key],
-                    amount * 3 / 100,
-                    9,
+                    (amount as f64 * 2.5 / 100.00) as u64,
+                    
                 )?,
                 &[
                     raffler_zion_token_account_info.clone(),
