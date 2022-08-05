@@ -14,7 +14,6 @@ pub struct AuctionOrder {
     pub bid: u64,
     pub total_bid_amount: u64,
     pub token_type: Pubkey,
-    
 }
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, Copy)]
@@ -26,24 +25,40 @@ pub struct AuctionOrderSol {
     pub token_account: Pubkey,
     pub bidder_wallet_address: Pubkey,
     pub bid: u64,
-    pub total_bid_amount: u64
+    pub total_bid_amount: u64,
 }
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
-pub struct RaffleCounter{
+pub struct RaffleCounter {
     pub raffler_address: Pubkey,
-    pub entry_counter:u32
+    pub entry_counter: u32,
 }
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
-pub struct RaffleOrder{
+pub struct RaffleOrder {
     pub is_initialized: bool,
     pub owner_wallet_address: Pubkey,
     pub time: u64,
     pub token_account: Pubkey,
-    pub price:u64,
+    pub price: u64,
     pub token_type: Pubkey,
-    pub ticket_supply:u64,
-    pub raffle_entry_record:Vec<RaffleCounter>
+    pub ticket_supply: u64,
+    pub raffle_entry_record: Vec<RaffleCounter>,
+}
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
+pub struct FeaturedRaffles {
+    pub is_initialized: bool,
+    pub raffle_account: Pubkey,
+    pub is_featured: bool,
+}
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
+pub struct BlackMarketInfo {
+    pub is_initialized: bool,
+    pub owner_wallet_address: Pubkey,
+    pub raffle_fee: u64,
+    pub featuring_fee: u64,
 }
