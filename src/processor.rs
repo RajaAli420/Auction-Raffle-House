@@ -1565,8 +1565,9 @@ impl Processor {
                 break;
             }
         }
-        if account_info.len() == 9 {
+        if account_info.len() == 10 || account_info.len() == 11 {
             let admin = next_account_info(accounts)?;
+            let _system_account = next_account_info(accounts)?;
             if *admin.key
                 == Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
                 && admin.is_signer == true
@@ -1586,6 +1587,16 @@ impl Processor {
             } else {
                 return Err(MarketError::WrongOwner.into());
             }
+            if account_info.len() == 11 {
+                let feature_account = next_account_info(accounts)?;
+                **cat_king.try_borrow_mut_lamports()? = cat_king
+                .lamports()
+                .checked_add(feature_account.lamports())
+                .ok_or(ProgramError::InsufficientFunds)?;
+            **feature_account.try_borrow_mut_lamports()? = 0;
+            *feature_account.try_borrow_mut_data()? = &mut [];
+            }
+            
         } else {
             if *cat_king.key == raffle_struct.owner_wallet_address
                 && *raffle_nft_token_account_info.key == raffle_struct.token_account
@@ -1598,7 +1609,17 @@ impl Processor {
             } else {
                 return Err(MarketError::ValueMisMatch.into());
             }
+            if account_info.len() == 9 {
+                let feature_account = next_account_info(accounts)?;
+                **cat_king.try_borrow_mut_lamports()? = cat_king
+                .lamports()
+                .checked_add(feature_account.lamports())
+                .ok_or(ProgramError::InsufficientFunds)?;
+            **feature_account.try_borrow_mut_lamports()? = 0;
+            *feature_account.try_borrow_mut_data()? = &mut [];
+            }    
         }
+        
 
         Ok(())
     }
@@ -1942,3 +1963,12 @@ impl Processor {
     }
     //sell functions for
 }
+
+
+
+
+
+    
+
+
+
