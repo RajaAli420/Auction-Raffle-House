@@ -10,7 +10,7 @@ pub struct AuctionOrder {
     pub time: u64,
     pub minimum_price: u64,
     pub bidder_wallet_address: Pubkey,
-    pub bidder_zion_token_account: Pubkey,
+    pub bidder_spl_token_account: Pubkey,
     pub bid: u64,
     pub total_bid_amount: u64,
     pub token_type: Pubkey,

@@ -11,7 +11,7 @@ pub enum MarketplaceInstruction {
         new_bid: u64,
     },
     CompleteAuction,
-    CompleteAuctionUserZion,
+    CompleteAuctionUserspl,
 
     CompleteAuctionAnyTime,
 
@@ -142,7 +142,7 @@ impl MarketplaceInstruction {
             23 => Self::CanceAuctionSol,
 
             27 => Self::CompleteAuctionAnyTimeSol,
-            29 => Self::CompleteAuctionUserZion,
+            29 => Self::CompleteAuctionUserspl,
             31 => Self::CompleteAuctionUserSol,
             32 => Self::HandleNonTransfer,
             _ => return Err(InvalidInstruction.into()),

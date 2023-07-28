@@ -71,7 +71,7 @@ impl Processor {
             MarketplaceInstruction::CompleteAuctionAnyTimeSol => {
                 Self::complete_auction_order_sol_anytime(program_id, account_info)
             }
-            MarketplaceInstruction::CompleteAuctionUserZion => {
+            MarketplaceInstruction::CompleteAuctionUserspl => {
                 Self::complete_auction_order_user(program_id, account_info)
             }
             MarketplaceInstruction::CompleteAuctionUserSol => {
@@ -142,7 +142,7 @@ impl Processor {
             return Err(MarketError::MinPrice.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         if let Err(error) = invoke(
             &SPLIX::set_authority(
                 token_program.key,
@@ -170,13 +170,13 @@ impl Processor {
     fn place_bid(program_id: Pubkey, account_info: &[AccountInfo], bid: u64) -> ProgramResult {
         let accounts = &mut account_info.iter();
         let bidder_account_info = next_account_info(accounts)?; // bidder wallet
-        let biddder_zion_token_account_info = next_account_info(accounts)?; // zion to be transferred from
-        let zion_mint_account_info = next_account_info(accounts)?;
+        let biddder_spl_token_account_info = next_account_info(accounts)?; // spl to be transferred from
+        let spl_mint_account_info = next_account_info(accounts)?;
         let auction_order_account_info = next_account_info(accounts)?; // auction data to be updated account
         let previous_bidder = next_account_info(accounts)?; // previous bidder info
-        let previous_bidder_zion_token_account_info = next_account_info(accounts)?; //
+        let previous_bidder_spl_token_account_info = next_account_info(accounts)?; //
         let token_program = next_account_info(accounts)?;
-        let pda_zion_token_account_info = next_account_info(accounts)?; // would be created once
+        let pda_spl_token_account_info = next_account_info(accounts)?; // would be created once
         let pda_account_info = next_account_info(accounts)?;
         if *auction_order_account_info.owner != program_id {
             return Err(ProgramError::IncorrectProgramId);
@@ -184,20 +184,20 @@ impl Processor {
         let mut auction_order_struct: AuctionOrder =
             BorshDeserialize::try_from_slice(&mut auction_order_account_info.data.borrow())?;
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         //initial bid
         if auction_order_struct.owner_wallet_address == *bidder_account_info.key {
             return Err(MarketError::OwnerCannotBid.into());
         }
-        if *previous_bidder_zion_token_account_info.key
-            != auction_order_struct.bidder_zion_token_account
+        if *previous_bidder_spl_token_account_info.key
+            != auction_order_struct.bidder_spl_token_account
         {
             return Err(MarketError::ValueMisMatch.into());
         }
         if &pda != pda_account_info.key {
             return Err(MarketError::PdaError.into());
         }
-        if SPLS::Account::unpack_unchecked(&mut pda_zion_token_account_info.data.borrow())?.owner
+        if SPLS::Account::unpack_unchecked(&mut pda_spl_token_account_info.data.borrow())?.owner
             != *pda_account_info.key
         {
             return Err(MarketError::WrongOwner.into());
@@ -216,23 +216,23 @@ impl Processor {
             if let Err(error) = invoke(
                 &SPLIX::transfer(
                     token_program.key,
-                    biddder_zion_token_account_info.key,
-                    pda_zion_token_account_info.key,
+                    biddder_spl_token_account_info.key,
+                    pda_spl_token_account_info.key,
                     bidder_account_info.key,
                     &[bidder_account_info.key],
                     bid,
                 )?,
                 &[
-                    biddder_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    pda_zion_token_account_info.clone(),
+                    biddder_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    pda_spl_token_account_info.clone(),
                     bidder_account_info.clone(),
                 ],
             ) {
                 return Err(error);
             }
             auction_order_struct.bidder_wallet_address = *bidder_account_info.key;
-            auction_order_struct.bidder_zion_token_account = *biddder_zion_token_account_info.key;
+            auction_order_struct.bidder_spl_token_account = *biddder_spl_token_account_info.key;
             auction_order_struct.bid = bid;
             auction_order_struct.total_bid_amount = bid;
         } else if bid > auction_order_struct.bid //bigger bid
@@ -243,16 +243,16 @@ impl Processor {
             if let Err(error) = invoke(
                 &SPLIX::transfer(
                     token_program.key,
-                    biddder_zion_token_account_info.key,
-                    pda_zion_token_account_info.key,
+                    biddder_spl_token_account_info.key,
+                    pda_spl_token_account_info.key,
                     bidder_account_info.key,
                     &[bidder_account_info.key],
                     bid,
                 )?,
                 &[
-                    biddder_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    pda_zion_token_account_info.clone(),
+                    biddder_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    pda_spl_token_account_info.clone(),
                     bidder_account_info.clone(),
                 ],
             ) {
@@ -261,7 +261,7 @@ impl Processor {
             if *previous_bidder.key != auction_order_struct.bidder_wallet_address
                 || *previous_bidder.key
                     != SPLS::Account::unpack_unchecked(
-                        &mut previous_bidder_zion_token_account_info.data.borrow(),
+                        &mut previous_bidder_spl_token_account_info.data.borrow(),
                     )?
                     .owner
             {
@@ -271,24 +271,24 @@ impl Processor {
             if let Err(error) = invoke_signed(
                 &SPLIX::transfer(
                     token_program.key,
-                    pda_zion_token_account_info.key,
-                    previous_bidder_zion_token_account_info.key,
+                    pda_spl_token_account_info.key,
+                    previous_bidder_spl_token_account_info.key,
                     &pda,
                     &[&pda],
                     auction_order_struct.bid,
                 )?,
                 &[
-                    pda_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    previous_bidder_zion_token_account_info.clone(),
+                    pda_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    previous_bidder_spl_token_account_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
             auction_order_struct.bidder_wallet_address = *bidder_account_info.key;
-            auction_order_struct.bidder_zion_token_account = *biddder_zion_token_account_info.key;
+            auction_order_struct.bidder_spl_token_account = *biddder_spl_token_account_info.key;
             auction_order_struct.bid = bid;
             auction_order_struct.total_bid_amount = auction_order_struct.total_bid_amount + bid;
         } else {
@@ -302,8 +302,8 @@ impl Processor {
     //admin 100
     fn complete_auction_order(program_id: Pubkey, account_info: &[AccountInfo]) -> ProgramResult {
         let accounts = &mut account_info.iter();
-        let cat_king = next_account_info(accounts)?; //holder info
-        let cat_king_zion_token_account = next_account_info(accounts)?; //can be a static account value for now to transfer the bid amount
+        let king = next_account_info(accounts)?; //holder info
+        let king_spl_token_account = next_account_info(accounts)?; //can be a static account value for now to transfer the bid amount
         let bidder_info = next_account_info(accounts)?; //get from sellerOrder Account in web3 claiming k liyey
         let auction_order_account_info = next_account_info(accounts)?; //fetch data and matach with web3
         let auction_nft_token_account_info = next_account_info(accounts)?; //from auciton order Account in web3
@@ -311,15 +311,15 @@ impl Processor {
         let auction_nft_new_token_account = next_account_info(accounts)?; // new token account of user to send nft to
         let auction_nft_mint = next_account_info(accounts)?; // auction TOken mint account for transfer function
         let token_program = next_account_info(accounts)?;
-        let pda_zion_token_account_info = next_account_info(accounts)?; // to transfer to cat king zion token acount
-        let zion_mint_account_info = next_account_info(accounts)?; // zoin mint static value
+        let pda_spl_token_account_info = next_account_info(accounts)?; // to transfer to cat king spl token acount
+        let spl_mint_account_info = next_account_info(accounts)?; // zoin mint static value
         let auction_order_struct: AuctionOrder =
             BorshDeserialize::try_from_slice(&mut auction_order_account_info.data.borrow())?;
         if *auction_order_account_info.owner != program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
         if bidder_info.is_signer != true
-            || *cat_king.key != auction_order_struct.owner_wallet_address
+            || *king.key != auction_order_struct.owner_wallet_address
             || *auction_nft_token_account_info.key != auction_order_struct.token_account
             || *bidder_info.key != auction_order_struct.bidder_wallet_address
         {
@@ -331,34 +331,34 @@ impl Processor {
             return Err(MarketError::WrongOwner.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
         }
-        if SPLS::Account::unpack_unchecked(&mut cat_king_zion_token_account.data.borrow())?.owner
+        if SPLS::Account::unpack_unchecked(&mut king_spl_token_account.data.borrow())?.owner
             != auction_order_struct.owner_wallet_address
         {
             return Err(MarketError::WrongOwner.into());
         }
 
-        //transferring ZIon to cat king
+        //transferring spl to cat king
         if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time {
             if let Err(error) = invoke_signed(
                 &SPLIX::transfer(
                     token_program.key,
-                    pda_zion_token_account_info.key,
-                    cat_king_zion_token_account.key,
+                    pda_spl_token_account_info.key,
+                    king_spl_token_account.key,
                     &pda,
                     &[&pda],
                     auction_order_struct.bid,
                 )?,
                 &[
-                    pda_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    cat_king_zion_token_account.clone(),
+                    pda_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    king_spl_token_account.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -380,7 +380,7 @@ impl Processor {
                     auction_nft_new_token_account.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -388,21 +388,21 @@ impl Processor {
                 &SPLIX::close_account(
                     token_program.key,
                     auction_nft_token_account_info.key,
-                    cat_king.key,
+                    king.key,
                     &pda,
                     &[&pda],
                 )?,
                 &[
                     auction_nft_token_account_info.clone(),
-                    cat_king.clone(),
+                    king.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
             //closing the auction order account
-            **cat_king.try_borrow_mut_lamports()? = cat_king
+            **king.try_borrow_mut_lamports()? = king
                 .lamports()
                 .checked_add(auction_order_account_info.lamports())
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -420,7 +420,7 @@ impl Processor {
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
         let holder_info = next_account_info(accounts)?; //holder info
-        let holder_zion_token_account = next_account_info(accounts)?; //can be a static account value for now to transfer the bid amount
+        let holder_spl_token_account = next_account_info(accounts)?; //can be a static account value for now to transfer the bid amount
         let bidder_info = next_account_info(accounts)?; //get from sellerOrder Account in web3 claiming k liyey
         let auction_order_account_info = next_account_info(accounts)?; //fetch data and matach with web3
         let auction_nft_token_account_info = next_account_info(accounts)?; //from auciton order Account in web3
@@ -428,9 +428,9 @@ impl Processor {
         let auction_nft_new_token_account = next_account_info(accounts)?; // new token account of user to send nft to
         let auction_nft_mint = next_account_info(accounts)?; // auction TOken mint account for transfer function
         let token_program = next_account_info(accounts)?;
-        let pda_zion_token_account_info = next_account_info(accounts)?; // to transfer to cat king zion token acount
-        let zion_mint_account_info = next_account_info(accounts)?; // zoin mint static value
-        let client_zion_token_account_info = next_account_info(accounts)?;
+        let pda_spl_token_account_info = next_account_info(accounts)?; // to transfer to cat king spl token acount
+        let spl_mint_account_info = next_account_info(accounts)?; // zoin mint static value
+        let client_spl_token_account_info = next_account_info(accounts)?;
         let auction_order_struct: AuctionOrder =
             BorshDeserialize::try_from_slice(&mut auction_order_account_info.data.borrow())?;
         if *auction_order_account_info.owner != program_id {
@@ -443,8 +443,8 @@ impl Processor {
         {
             return Err(MarketError::ValueMisMatch.into());
         }
-        if SPLS::Account::unpack_unchecked(&mut client_zion_token_account_info.data.borrow())?.owner
-            != Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+        if SPLS::Account::unpack_unchecked(&mut client_spl_token_account_info.data.borrow())?.owner
+            != Pubkey::from_str("to_check_spl_address").unwrap()
         {
             return Err(MarketError::WrongOwner.into());
         }
@@ -455,49 +455,49 @@ impl Processor {
         }
 
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
         }
-        //transferring ZIon to cat king
+        //transferring spl to cat king
         if auction_order_struct.bid == 0 {
             return Err(MarketError::InvalidInstruction.into());
         }
         if let Err(error) = invoke_signed(
             &SPLIX::transfer(
                 token_program.key,
-                pda_zion_token_account_info.key,
-                holder_zion_token_account.key,
+                pda_spl_token_account_info.key,
+                holder_spl_token_account.key,
                 &pda,
                 &[&pda],
                 (auction_order_struct.bid as f64 * 97.5 / 100.00) as u64,
             )?,
             &[
-                pda_zion_token_account_info.clone(),
-                zion_mint_account_info.clone(),
-                holder_zion_token_account.clone(),
+                pda_spl_token_account_info.clone(),
+                spl_mint_account_info.clone(),
+                holder_spl_token_account.clone(),
                 pda_account_info.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
         if let Err(error) = invoke_signed(
             &SPLIX::transfer(
                 token_program.key,
-                pda_zion_token_account_info.key,
-                client_zion_token_account_info.key,
+                pda_spl_token_account_info.key,
+                client_spl_token_account_info.key,
                 &pda,
                 &[&pda],
                 (auction_order_struct.bid as f64 * 2.5 / 100.00) as u64,
             )?,
             &[
-                pda_zion_token_account_info.clone(),
-                zion_mint_account_info.clone(),
-                client_zion_token_account_info.clone(),
+                pda_spl_token_account_info.clone(),
+                spl_mint_account_info.clone(),
+                client_spl_token_account_info.clone(),
                 pda_account_info.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
@@ -519,7 +519,7 @@ impl Processor {
                 auction_nft_new_token_account.clone(),
                 pda_account_info.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
@@ -536,7 +536,7 @@ impl Processor {
                 holder_info.clone(),
                 pda_account_info.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
@@ -555,7 +555,7 @@ impl Processor {
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
         let holder_info = next_account_info(accounts)?; //holder info
-        let holder_zion_token_account = next_account_info(accounts)?; //can be a static account value for now to transfer the bid amount
+        let holder_spl_token_account = next_account_info(accounts)?; //can be a static account value for now to transfer the bid amount
         let bidder_info = next_account_info(accounts)?; //get from sellerOrder Account in web3 claiming k liyey
         let auction_order_account_info = next_account_info(accounts)?; //fetch data and matach with web3
         let auction_nft_token_account_info = next_account_info(accounts)?; //from auciton order Account in web3
@@ -563,9 +563,9 @@ impl Processor {
         let auction_nft_new_token_account = next_account_info(accounts)?; // new token account of user to send nft to
         let auction_nft_mint = next_account_info(accounts)?; // auction TOken mint account for transfer function
         let token_program = next_account_info(accounts)?;
-        let pda_zion_token_account_info = next_account_info(accounts)?; // to transfer to cat king zion token acount
-        let zion_mint_account_info = next_account_info(accounts)?; // zoin mint static value
-        let client_zion_token_account_info = next_account_info(accounts)?;
+        let pda_spl_token_account_info = next_account_info(accounts)?; // to transfer to cat king spl token acount
+        let spl_mint_account_info = next_account_info(accounts)?; // zoin mint static value
+        let client_spl_token_account_info = next_account_info(accounts)?;
         let auction_order_struct: AuctionOrder =
             BorshDeserialize::try_from_slice(&mut auction_order_account_info.data.borrow())?;
         if *auction_order_account_info.owner != program_id {
@@ -578,8 +578,8 @@ impl Processor {
         {
             return Err(MarketError::ValueMisMatch.into());
         }
-        if SPLS::Account::unpack_unchecked(&mut client_zion_token_account_info.data.borrow())?.owner
-            != Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+        if SPLS::Account::unpack_unchecked(&mut client_spl_token_account_info.data.borrow())?.owner
+            != Pubkey::from_str("to_check_spl_address").unwrap()
         {
             return Err(MarketError::WrongOwner.into());
         }
@@ -590,47 +590,47 @@ impl Processor {
             return Err(MarketError::WrongOwner.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
         }
-        //transferring ZIon to cat king
+        //transferring spl to cat king
         if Clock::get()?.unix_timestamp as u64 > auction_order_struct.time {
             if let Err(error) = invoke_signed(
                 &SPLIX::transfer(
                     token_program.key,
-                    pda_zion_token_account_info.key,
-                    holder_zion_token_account.key,
+                    pda_spl_token_account_info.key,
+                    holder_spl_token_account.key,
                     &pda,
                     &[&pda],
                     (auction_order_struct.bid as f64 * 97.5 / 100.00) as u64,
                 )?,
                 &[
-                    pda_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    holder_zion_token_account.clone(),
+                    pda_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    holder_spl_token_account.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
             if let Err(error) = invoke_signed(
                 &SPLIX::transfer(
                     token_program.key,
-                    pda_zion_token_account_info.key,
-                    client_zion_token_account_info.key,
+                    pda_spl_token_account_info.key,
+                    client_spl_token_account_info.key,
                     &pda,
                     &[&pda],
                     (auction_order_struct.bid as f64 * 2.5 / 100.00) as u64,
                 )?,
                 &[
-                    pda_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    client_zion_token_account_info.clone(),
+                    pda_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    client_spl_token_account_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -652,7 +652,7 @@ impl Processor {
                     auction_nft_new_token_account.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -669,7 +669,7 @@ impl Processor {
                     holder_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -693,9 +693,9 @@ impl Processor {
         let token_program = next_account_info(accounts)?;
         let pda_account_info = next_account_info(accounts)?;
         let bidder_info = next_account_info(accounts)?;
-        let previous_bidder_zion_token_account_info = next_account_info(accounts)?;
-        let zion_mint_account_info = next_account_info(accounts)?;
-        let pda_zion_token_account_info = next_account_info(accounts)?;
+        let previous_bidder_spl_token_account_info = next_account_info(accounts)?;
+        let spl_mint_account_info = next_account_info(accounts)?;
+        let pda_spl_token_account_info = next_account_info(accounts)?;
         if *auction_order_account_info.owner != program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
@@ -709,7 +709,7 @@ impl Processor {
             return Err(ProgramError::IllegalOwner.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
         }
@@ -728,7 +728,7 @@ impl Processor {
                     token_account_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -736,19 +736,19 @@ impl Processor {
                 if let Err(error) = invoke_signed(
                     &SPLIX::transfer(
                         token_program.key,
-                        pda_zion_token_account_info.key,
-                        previous_bidder_zion_token_account_info.key,
+                        pda_spl_token_account_info.key,
+                        previous_bidder_spl_token_account_info.key,
                         &pda,
                         &[&pda],
                         auction_order_struct.bid,
                     )?,
                     &[
-                        pda_zion_token_account_info.clone(),
-                        zion_mint_account_info.clone(),
-                        previous_bidder_zion_token_account_info.clone(),
+                        pda_spl_token_account_info.clone(),
+                        spl_mint_account_info.clone(),
+                        previous_bidder_spl_token_account_info.clone(),
                         pda_account_info.clone(),
                     ],
-                    &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                    &[&[&b"seeds_for_pda"[..], &[_nonce]]],
                 ) {
                     return Err(error);
                 }
@@ -823,7 +823,7 @@ impl Processor {
             return Err(MarketError::MinPrice.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on$0!"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda$0!"], &program_id);
         if let Err(error) = invoke(
             &SPLIX::set_authority(
                 token_program.key,
@@ -867,7 +867,7 @@ impl Processor {
             return Err(MarketError::BidMustBeGreater.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on$0!"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda$0!"], &program_id);
         if auction_order_struct.time - Clock::get()?.unix_timestamp as u64 <= 120 {
             auction_order_struct.time += 120;
         }
@@ -917,7 +917,7 @@ impl Processor {
                     previous_bidder.clone(),
                     sys_program_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -938,7 +938,7 @@ impl Processor {
         account_info: &[AccountInfo],
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
-        let holder_info = next_account_info(accounts)?; //cat_king
+        let holder_info = next_account_info(accounts)?; //king
         let bidder_info = next_account_info(accounts)?; //get from sellerOrder Account in web3 will claim themselves
         let auction_order_account_info = next_account_info(accounts)?;
         let sell_token_account_info = next_account_info(accounts)?; //from sell order Account in web3
@@ -962,7 +962,7 @@ impl Processor {
         }
 
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on$0!"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda$0!"], &program_id);
         if SPLS::Account::unpack_unchecked(&mut sell_token_new_account_info.data.borrow())?.owner
             != *bidder_info.key
         {
@@ -981,7 +981,7 @@ impl Processor {
                     pda_account_info.clone(),
                     holder_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1002,7 +1002,7 @@ impl Processor {
                     sell_token_new_account_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1019,7 +1019,7 @@ impl Processor {
                     holder_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1048,7 +1048,7 @@ impl Processor {
         let pda_account_info = next_account_info(accounts)?;
         let sys_program_info = next_account_info(accounts)?;
         let token_program = next_account_info(accounts)?;
-        let cat_king = next_account_info(accounts)?; //2 percentages
+        let king = next_account_info(accounts)?; //2 percentages
         if *auction_order_account_info.owner != program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
@@ -1062,8 +1062,8 @@ impl Processor {
         {
             return Err(MarketError::ValueMisMatch.into());
         }
-        if cat_king.key
-            != &Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+        if king.key
+            != &Pubkey::from_str("to_check_spl_address").unwrap()
         {
             return Err(MarketError::WrongOwner.into());
         }
@@ -1073,7 +1073,7 @@ impl Processor {
             return Err(MarketError::WrongOwner.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on$0!"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda$0!"], &program_id);
 
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
@@ -1092,22 +1092,22 @@ impl Processor {
                 pda_account_info.clone(),
                 holder_info.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
         if let Err(error) = invoke_signed(
             &transfer(
                 &pda,
-                cat_king.key,
+                king.key,
                 ((auction_order_struct.bid as f64 * 2.5) / 100.00) as u64,
             ),
             &[
                 sys_program_info.clone(),
                 pda_account_info.clone(),
-                cat_king.clone(),
+                king.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
@@ -1128,7 +1128,7 @@ impl Processor {
                 sell_token_new_account_info.clone(),
                 pda_account_info.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
@@ -1145,7 +1145,7 @@ impl Processor {
                 holder_info.clone(),
                 pda_account_info.clone(),
             ],
-            &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+            &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
         ) {
             return Err(error);
         }
@@ -1171,7 +1171,7 @@ impl Processor {
         let pda_account_info = next_account_info(accounts)?;
         let sys_program_info = next_account_info(accounts)?;
         let token_program = next_account_info(accounts)?;
-        let cat_king = next_account_info(accounts)?; //2 percentages
+        let king = next_account_info(accounts)?; //2 percentages
         if *auction_order_account_info.owner != program_id {
             return Err(ProgramError::IncorrectProgramId);
         }
@@ -1185,8 +1185,8 @@ impl Processor {
         {
             return Err(MarketError::ValueMisMatch.into());
         }
-        if cat_king.key
-            != &Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+        if king.key
+            != &Pubkey::from_str("to_check_spl_address").unwrap()
         {
             return Err(MarketError::WrongOwner.into());
         }
@@ -1197,7 +1197,7 @@ impl Processor {
         }
 
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on$0!"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda$0!"], &program_id);
 
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
@@ -1216,22 +1216,22 @@ impl Processor {
                     pda_account_info.clone(),
                     holder_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
             if let Err(error) = invoke_signed(
                 &transfer(
                     &pda,
-                    cat_king.key,
+                    king.key,
                     ((auction_order_struct.bid as f64 * 2.5) / 100.00) as u64,
                 ),
                 &[
                     sys_program_info.clone(),
                     pda_account_info.clone(),
-                    cat_king.clone(),
+                    king.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1252,7 +1252,7 @@ impl Processor {
                     sell_token_new_account_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1269,7 +1269,7 @@ impl Processor {
                     holder_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1306,7 +1306,7 @@ impl Processor {
             return Err(ProgramError::IllegalOwner.into());
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on$0!"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda$0!"], &program_id);
 
         if *pda_account_info.key != pda {
             return Err(MarketError::PdaError.into());
@@ -1327,7 +1327,7 @@ impl Processor {
                     token_account_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1339,7 +1339,7 @@ impl Processor {
                 //             bidder_info.clone(),
                 //             sys_program_info.clone(),
                 //         ],
-                //         &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                //         &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
                 //     ) {
                 //         return Err(error);
                 //     }
@@ -1351,7 +1351,7 @@ impl Processor {
                         previous_bidder.clone(),
                         sys_program_info.clone(),
                     ],
-                    &[&[&b"C@tC@rte!R@ffle$&Auct!on$0!"[..], &[_nonce]]],
+                    &[&[&b"seeds_for_pda$0!"[..], &[_nonce]]],
                 ) {
                     return Err(error);
                 }
@@ -1420,7 +1420,7 @@ impl Processor {
         raffle_order_struct.token_type = *token_type.key;
         raffle_order_struct.ticket_supply = total_ticket;
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         if let Err(error) = invoke(
             &SPLIX::set_authority(
                 token_program.key,
@@ -1499,19 +1499,19 @@ impl Processor {
             && raffle_struct.token_type
                 != Pubkey::from_str("So11111111111111111111111111111111111111112").unwrap()
         {
-            let raffler_zion_token_account_info = next_account_info(accounts)?;
-            let zion_mint_account_info = next_account_info(accounts)?;
-            let cat_king_zion_token_account = next_account_info(accounts)?;
+            let raffler_spl_token_account_info = next_account_info(accounts)?;
+            let spl_mint_account_info = next_account_info(accounts)?;
+            let king_spl_token_account = next_account_info(accounts)?;
             let token_program = next_account_info(accounts)?; // token program
-            let client_zion_token_account_info = next_account_info(accounts)?; //ppublic owner
+            let client_spl_token_account_info = next_account_info(accounts)?; //ppublic owner
 
             let spl_accounts = &[
                 raffler_info.clone(),
-                raffler_zion_token_account_info.clone(),
-                zion_mint_account_info.clone(),
-                cat_king_zion_token_account.clone(),
+                raffler_spl_token_account_info.clone(),
+                spl_mint_account_info.clone(),
+                king_spl_token_account.clone(),
                 token_program.clone(),
-                client_zion_token_account_info.clone(),
+                client_spl_token_account_info.clone(),
             ];
             if let Err(error) =
                 Self::handle_spl_tokens(spl_accounts, raffle_struct.owner_wallet_address, amount)
@@ -1521,12 +1521,12 @@ impl Processor {
         } else if raffle_struct.token_type
             == Pubkey::from_str("So11111111111111111111111111111111111111112").unwrap()
         {
-            let cat_king_wallet_account_info = next_account_info(accounts)?;
+            let king_wallet_account_info = next_account_info(accounts)?;
             let sys_program_info = next_account_info(accounts)?;
             let rafflee_info = next_account_info(accounts)?;
             let spl_accounts = &[
                 raffler_info.clone(),
-                cat_king_wallet_account_info.clone(),
+                king_wallet_account_info.clone(),
                 sys_program_info.clone(),
                 rafflee_info.clone(),
             ];
@@ -1544,7 +1544,7 @@ impl Processor {
     }
     fn end_raffle(program_id: Pubkey, account_info: &[AccountInfo]) -> ProgramResult {
         let accounts = &mut account_info.iter();
-        let cat_king = next_account_info(accounts)?;
+        let king = next_account_info(accounts)?;
         let raffler_info = next_account_info(accounts)?; //get from sellerOrder Account in web3 claiming k liyey
         let raffle_order_account_info = next_account_info(accounts)?; //fetch data and matach with web3
         let raffle_nft_token_account_info = next_account_info(accounts)?; //from auciton order Account in web3
@@ -1569,12 +1569,12 @@ impl Processor {
             let admin = next_account_info(accounts)?;
             let _system_account = next_account_info(accounts)?;
             if *admin.key
-                == Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+                == Pubkey::from_str("to_check_spl_address").unwrap()
                 && admin.is_signer == true
             {
-                if *cat_king.key == raffle_struct.owner_wallet_address
+                if *king.key == raffle_struct.owner_wallet_address
                     && *raffle_nft_token_account_info.key == raffle_struct.token_account
-                // && cat_king.is_signer == true
+                // && king.is_signer == true
                 {
                     if let Err(error) =
                         Self::transfer_to_winner_raffle(program_id, account_info, exist)
@@ -1589,7 +1589,7 @@ impl Processor {
             }
             if account_info.len() == 11 {
                 let feature_account = next_account_info(accounts)?;
-                **cat_king.try_borrow_mut_lamports()? = cat_king
+                **king.try_borrow_mut_lamports()? = king
                 .lamports()
                 .checked_add(feature_account.lamports())
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -1598,9 +1598,9 @@ impl Processor {
             }
             
         } else {
-            if *cat_king.key == raffle_struct.owner_wallet_address
+            if *king.key == raffle_struct.owner_wallet_address
                 && *raffle_nft_token_account_info.key == raffle_struct.token_account
-                && cat_king.is_signer == true
+                && king.is_signer == true
             {
                 if let Err(error) = Self::transfer_to_winner_raffle(program_id, account_info, exist)
                 {
@@ -1611,7 +1611,7 @@ impl Processor {
             }
             if account_info.len() == 9 {
                 let feature_account = next_account_info(accounts)?;
-                **cat_king.try_borrow_mut_lamports()? = cat_king
+                **king.try_borrow_mut_lamports()? = king
                 .lamports()
                 .checked_add(feature_account.lamports())
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -1629,7 +1629,7 @@ impl Processor {
         exist: bool,
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
-        let cat_king = next_account_info(accounts)?;
+        let king = next_account_info(accounts)?;
         let _raffler_info = next_account_info(accounts)?; //get from sellerOrder Account in web3 claiming k liyey
         let raffle_order_account_info = next_account_info(accounts)?; //fetch data and matach with web3
         let raffle_nft_token_account_info = next_account_info(accounts)?; //from auciton order Account in web3
@@ -1641,7 +1641,7 @@ impl Processor {
             return Err(ProgramError::IncorrectProgramId);
         }
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         let raffle_struct: RaffleOrder =
             try_from_slice_unchecked(&mut raffle_order_account_info.data.borrow())?;
         if Clock::get()?.unix_timestamp as u64 > raffle_struct.time && exist == true {
@@ -1662,7 +1662,7 @@ impl Processor {
                     raffle_nft_new_token_account.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1670,20 +1670,20 @@ impl Processor {
                 &SPLIX::close_account(
                     token_program.key,
                     raffle_nft_token_account_info.key,
-                    cat_king.key,
+                    king.key,
                     &pda,
                     &[&pda],
                 )?,
                 &[
                     raffle_nft_token_account_info.clone(),
-                    cat_king.clone(),
+                    king.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
-            **cat_king.try_borrow_mut_lamports()? = cat_king
+            **king.try_borrow_mut_lamports()? = king
                 .lamports()
                 .checked_add(raffle_order_account_info.lamports())
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -1693,12 +1693,12 @@ impl Processor {
             && raffle_struct.raffle_entry_record.len() == 0
         {
             let (pda, _nonce) =
-                Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+                Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
             if let Err(error) = invoke_signed(
                 &SPLIX::set_authority(
                     token_program.key,
                     raffle_nft_token_account_info.key,
-                    Some(&cat_king.key),
+                    Some(&king.key),
                     SPLIX::AuthorityType::AccountOwner,
                     &pda,
                     &[&pda],
@@ -1708,11 +1708,11 @@ impl Processor {
                     raffle_nft_token_account_info.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
-            **cat_king.try_borrow_mut_lamports()? = cat_king
+            **king.try_borrow_mut_lamports()? = king
                 .lamports()
                 .checked_add(raffle_order_account_info.lamports())
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -1731,26 +1731,26 @@ impl Processor {
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
         let raffler_info = next_account_info(accounts)?; //cat king wallet
-        let cat_king_wallet_account_info = next_account_info(accounts)?;
+        let king_wallet_account_info = next_account_info(accounts)?;
         let sys_program_info = next_account_info(accounts)?;
         let rafflee_info = next_account_info(accounts)?;
 
         if owner_wallet_address
-            == Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+            == Pubkey::from_str("to_check_spl_address").unwrap()
         {
             if let Err(error) = invoke(
-                &transfer(&raffler_info.key, cat_king_wallet_account_info.key, amount),
+                &transfer(&raffler_info.key, king_wallet_account_info.key, amount),
                 &[
                     sys_program_info.clone(),
                     raffler_info.clone(),
-                    cat_king_wallet_account_info.clone(),
+                    king_wallet_account_info.clone(),
                 ],
             ) {
                 return Err(error);
             }
         } else {
-            if *cat_king_wallet_account_info.key
-                != Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+            if *king_wallet_account_info.key
+                != Pubkey::from_str("to_check_spl_address").unwrap()
             {
                 return Err(MarketError::WrongOwner.into());
             }
@@ -1772,13 +1772,13 @@ impl Processor {
             if let Err(error) = invoke(
                 &transfer(
                     &raffler_info.key,
-                    cat_king_wallet_account_info.key,
+                    king_wallet_account_info.key,
                     (amount as f64 * 2.5 / 100.00) as u64,
                 ),
                 &[
                     sys_program_info.clone(),
                     raffler_info.clone(),
-                    cat_king_wallet_account_info.clone(),
+                    king_wallet_account_info.clone(),
                 ],
             ) {
                 return Err(error);
@@ -1794,39 +1794,39 @@ impl Processor {
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
         let raffler_info = next_account_info(accounts)?; //cat king wallet
-        let raffler_zion_token_account_info = next_account_info(accounts)?;
-        let zion_mint_account_info = next_account_info(accounts)?;
-        let cat_king_zion_token_account = next_account_info(accounts)?;
+        let raffler_spl_token_account_info = next_account_info(accounts)?;
+        let spl_mint_account_info = next_account_info(accounts)?;
+        let king_spl_token_account = next_account_info(accounts)?;
         let token_program = next_account_info(accounts)?; // token program
-        let client_zion_token_account_info = next_account_info(accounts)?; //ppublic owner
-        if SPLS::Account::unpack_unchecked(&mut cat_king_zion_token_account.data.borrow())?.owner
-            != Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+        let client_spl_token_account_info = next_account_info(accounts)?; //ppublic owner
+        if SPLS::Account::unpack_unchecked(&mut king_spl_token_account.data.borrow())?.owner
+            != Pubkey::from_str("to_check_spl_address").unwrap()
         {
             return Err(MarketError::WrongOwner.into());
         }
         if owner_wallet_address
-            == Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+            == Pubkey::from_str("to_check_spl_address").unwrap()
         {
             if let Err(error) = invoke(
                 &SPLIX::transfer(
                     token_program.key,
-                    raffler_zion_token_account_info.key,
-                    cat_king_zion_token_account.key,
+                    raffler_spl_token_account_info.key,
+                    king_spl_token_account.key,
                     raffler_info.key,
                     &[raffler_info.key],
                     amount,
                 )?,
                 &[
-                    raffler_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    cat_king_zion_token_account.clone(),
+                    raffler_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    king_spl_token_account.clone(),
                     raffler_info.clone(),
                 ],
             ) {
                 return Err(error);
             }
         } else {
-            if SPLS::Account::unpack_unchecked(&mut client_zion_token_account_info.data.borrow())?
+            if SPLS::Account::unpack_unchecked(&mut client_spl_token_account_info.data.borrow())?
                 .owner
                 != owner_wallet_address
             {
@@ -1835,16 +1835,16 @@ impl Processor {
             if let Err(error) = invoke(
                 &SPLIX::transfer(
                     token_program.key,
-                    raffler_zion_token_account_info.key,
-                    client_zion_token_account_info.key,
+                    raffler_spl_token_account_info.key,
+                    client_spl_token_account_info.key,
                     raffler_info.key,
                     &[raffler_info.key],
                     (amount as f64 * 97.5 / 100.00) as u64,
                 )?,
                 &[
-                    raffler_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    client_zion_token_account_info.clone(),
+                    raffler_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    client_spl_token_account_info.clone(),
                     raffler_info.clone(),
                 ],
             ) {
@@ -1853,16 +1853,16 @@ impl Processor {
             if let Err(error) = invoke(
                 &SPLIX::transfer(
                     token_program.key,
-                    raffler_zion_token_account_info.key,
-                    cat_king_zion_token_account.key,
+                    raffler_spl_token_account_info.key,
+                    king_spl_token_account.key,
                     raffler_info.key,
                     &[raffler_info.key],
                     (amount as f64 * 2.5 / 100.00) as u64,
                 )?,
                 &[
-                    raffler_zion_token_account_info.clone(),
-                    zion_mint_account_info.clone(),
-                    cat_king_zion_token_account.clone(),
+                    raffler_spl_token_account_info.clone(),
+                    spl_mint_account_info.clone(),
+                    king_spl_token_account.clone(),
                     raffler_info.clone(),
                 ],
             ) {
@@ -1876,7 +1876,7 @@ impl Processor {
         account_info: &[AccountInfo],
     ) -> ProgramResult {
         let accounts = &mut account_info.iter();
-        let cat_king = next_account_info(accounts)?; // signer
+        let king = next_account_info(accounts)?; // signer
         let raffler_info = next_account_info(accounts)?; //get from sellerOrder Account in web3 claiming k liyey
         let raffle_order_account_info = next_account_info(accounts)?; //fetch data and matach with web3
         let raffle_nft_token_account_info = next_account_info(accounts)?; //from auciton order Account in web3
@@ -1885,18 +1885,18 @@ impl Processor {
         let raffle_nft_new_token_account = next_account_info(accounts)?; // new token account of user to send nft to
         let token_program = next_account_info(accounts)?;
         let (pda, _nonce) =
-            Pubkey::find_program_address(&[b"C@tC@rte!R@ffle$&Auct!on"], &program_id);
+            Pubkey::find_program_address(&[b"seeds_for_pda"], &program_id);
         let raffle_struct: RaffleOrder =
             try_from_slice_unchecked(&mut raffle_order_account_info.data.borrow())?;
-        if cat_king.is_signer != true {
+        if king.is_signer != true {
             return Err(MarketError::WrongOwner.into());
         }
-        if cat_king.key
-            != &Pubkey::from_str("5XJKsYXoLUSPh5KwdhecAyACLZujGKJ7z6ovQBznWKtq").unwrap()
+        if king.key
+            != &Pubkey::from_str("to_check_spl_address").unwrap()
         {
             return Err(MarketError::WrongOwner.into());
         }
-        // if *cat_king.key != raffle_struct.owner_wallet_address
+        // if *king.key != raffle_struct.owner_wallet_address
         if *raffle_nft_token_account_info.key != raffle_struct.token_account {
             return Err(MarketError::ValueMisMatch.into());
         }
@@ -1931,7 +1931,7 @@ impl Processor {
                     raffle_nft_new_token_account.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
@@ -1939,20 +1939,20 @@ impl Processor {
                 &SPLIX::close_account(
                     token_program.key,
                     raffle_nft_token_account_info.key,
-                    cat_king.key,
+                    king.key,
                     &pda,
                     &[&pda],
                 )?,
                 &[
                     raffle_nft_token_account_info.clone(),
-                    cat_king.clone(),
+                    king.clone(),
                     pda_account_info.clone(),
                 ],
-                &[&[&b"C@tC@rte!R@ffle$&Auct!on"[..], &[_nonce]]],
+                &[&[&b"seeds_for_pda"[..], &[_nonce]]],
             ) {
                 return Err(error);
             }
-            **cat_king.try_borrow_mut_lamports()? = cat_king
+            **king.try_borrow_mut_lamports()? = king
                 .lamports()
                 .checked_add(raffle_order_account_info.lamports())
                 .ok_or(ProgramError::InsufficientFunds)?;
